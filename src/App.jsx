@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -33,6 +35,8 @@ function App() {
             } />
           </Route>
         </Routes>
+        <Analytics />
+        <SpeedInsights />
       </AuthProvider>
     </BrowserRouter>
   );
