@@ -36,6 +36,13 @@ export const AuthProvider = ({ children }) => {
         console.log('Token refreshed successfully');
       }
       
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      
       if (session?.user) {
         setUser(session.user);
         
@@ -50,6 +57,8 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setProfile(null);
       }
+      
+      setLoading(false);
     });
 
     // Set up a periodic session check every 30 seconds
@@ -94,12 +103,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      setUser(null);
-      setProfile(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (!error) {
+        setUser(null);
+        setProfile(null);
+        // Clear any stored session data
+        localStorage.removeItem('supabase.auth.token');
+        sessionStorage.clear();
+      }
+      return { error };
+    } catch (err) {
+      console.error('Sign out error:', err);
+      return { error: err };
     }
-    return { error };
   };
 
   const isAdmin = profile?.role === 'admin';

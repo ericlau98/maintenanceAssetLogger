@@ -20,8 +20,22 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      setMobileMenuOpen(false); // Close mobile menu if open
+      const { error } = await signOut();
+      if (!error) {
+        // Force navigation to login page
+        window.location.href = '/login';
+      } else {
+        console.error('Sign out error:', error);
+        // Force reload even on error to clear state
+        window.location.href = '/login';
+      }
+    } catch (err) {
+      console.error('Sign out error:', err);
+      // Force reload even on error to clear state
+      window.location.href = '/login';
+    }
   };
 
   const navLinks = [
