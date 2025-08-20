@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Box, ClipboardList, AlertCircle, Leaf, TrendingUp, Clock, Wrench, MessageSquare, Eye, User } from 'lucide-react';
+import { Package, Box, ClipboardList, AlertCircle, Leaf, TrendingUp, Clock, Wrench, MessageSquare, Eye, User, Activity } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
