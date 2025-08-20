@@ -50,7 +50,7 @@ export default function Login() {
               Welcome Back
             </h2>
             <p className="mt-3 text-center text-lg text-gray-600">
-              Sign in to manage your greenhouse operations
+              Sign in to manage your inventory and assets
             </p>
           </div>
           
@@ -157,7 +157,7 @@ export default function Login() {
                 </div>
                 <h3 className="text-4xl font-bold mb-4">Growing Excellence Together</h3>
                 <p className="text-xl text-white/90 leading-relaxed">
-                  Track assets, manage inventory, and maintain your greenhouse operations with our comprehensive management system.
+                  Track assets, manage inventory and keep track of all your maintenance logs in this IMS (Inventory Management System).
                 </p>
               </div>
               
