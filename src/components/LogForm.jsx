@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Plus, Minus } from 'lucide-react';
+import { X, Plus, Minus, Image } from 'lucide-react';
+import ImageUpload from './ImageUpload';
 
 export default function LogForm({ log, assets, onClose }) {
   const { user } = useAuth();
@@ -10,6 +11,7 @@ export default function LogForm({ log, assets, onClose }) {
     log_type: log?.log_type || 'maintenance',
     description: log?.description || '',
     materials_used: log?.materials_used || [],
+    image_urls: log?.image_urls || [],
   });
   const [newMaterial, setNewMaterial] = useState('');
   const [loading, setLoading] = useState(false);
@@ -191,6 +193,46 @@ export default function LogForm({ log, assets, onClose }) {
                 <Plus className="h-4 w-4" />
               </button>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Attach Images
+            </label>
+            {formData.image_urls && formData.image_urls.length > 0 && (
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                {formData.image_urls.map((url, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`Log image ${index + 1}`}
+                      className="h-24 w-full object-cover rounded-lg border border-gray-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newUrls = formData.image_urls.filter((_, i) => i !== index);
+                        setFormData({ ...formData, image_urls: newUrls });
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <ImageUpload
+              bucket="log-images"
+              multiple={true}
+              onImageUploaded={(urls) => {
+                setFormData({ 
+                  ...formData, 
+                  image_urls: [...(formData.image_urls || []), ...urls] 
+                });
+              }}
+              onImageRemoved={() => {}}
+            />
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">

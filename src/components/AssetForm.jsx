@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { X } from 'lucide-react';
+import ImageUpload from './ImageUpload';
 
 export default function AssetForm({ asset, onClose }) {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export default function AssetForm({ asset, onClose }) {
     status: asset?.status || 'active',
     purchase_date: asset?.purchase_date || '',
     purchase_price: asset?.purchase_price || '',
+    image_url: asset?.image_url || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -187,6 +189,15 @@ export default function AssetForm({ asset, onClose }) {
                 value={formData.description}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-green focus:ring-brand-green sm:text-sm transition-all duration-200"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <ImageUpload
+                bucket="asset-images"
+                currentImageUrl={formData.image_url}
+                onImageUploaded={(url) => setFormData({ ...formData, image_url: url })}
+                onImageRemoved={() => setFormData({ ...formData, image_url: '' })}
               />
             </div>
           </div>

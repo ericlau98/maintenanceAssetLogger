@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Search, Wrench, MessageSquare, CheckCircle, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Wrench, MessageSquare, CheckCircle, Eye, Image } from 'lucide-react';
 import LogForm from '../components/LogForm';
 
 export default function Logs() {
@@ -227,6 +227,26 @@ export default function Logs() {
                         <li key={index}>{material}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+                
+                {log.image_urls && log.image_urls.length > 0 && (
+                  <div className="mt-3">
+                    <h4 className="text-sm font-medium text-gray-900 flex items-center mb-2">
+                      <Image className="h-4 w-4 mr-1" />
+                      Attached Images ({log.image_urls.length})
+                    </h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      {log.image_urls.map((url, index) => (
+                        <img
+                          key={index}
+                          src={url}
+                          alt={`Log attachment ${index + 1}`}
+                          className="h-20 w-full object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => window.open(url, '_blank')}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
                 

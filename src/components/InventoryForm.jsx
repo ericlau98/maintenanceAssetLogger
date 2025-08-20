@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { X } from 'lucide-react';
+import ImageUpload from './ImageUpload';
 
 export default function InventoryForm({ item, onClose }) {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export default function InventoryForm({ item, onClose }) {
     min_quantity: item?.min_quantity || 0,
     unit: item?.unit || '',
     location: item?.location || '',
+    image_url: item?.image_url || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -189,6 +191,15 @@ export default function InventoryForm({ item, onClose }) {
                 value={formData.description}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <ImageUpload
+                bucket="inventory-images"
+                currentImageUrl={formData.image_url}
+                onImageUploaded={(url) => setFormData({ ...formData, image_url: url })}
+                onImageRemoved={() => setFormData({ ...formData, image_url: '' })}
               />
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Image } from 'lucide-react';
 import AssetForm from '../components/AssetForm';
 
 export default function Assets() {
@@ -115,6 +115,9 @@ export default function Assets() {
                 <thead className="bg-gradient-to-r from-brand-light to-leaf-green-50">
                   <tr>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Image
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Name
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -139,6 +142,19 @@ export default function Assets() {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredAssets.map((asset) => (
                     <tr key={asset.id}>
+                      <td className="whitespace-nowrap px-3 py-4">
+                        {asset.image_url ? (
+                          <img
+                            src={asset.image_url}
+                            alt={asset.name}
+                            className="h-12 w-12 object-cover rounded-lg border border-gray-200"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Image className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         {asset.name}
                       </td>

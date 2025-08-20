@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Search, AlertCircle, PlusCircle, MinusCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, AlertCircle, PlusCircle, MinusCircle, Image } from 'lucide-react';
 import InventoryForm from '../components/InventoryForm';
 import AdjustQuantityModal from '../components/AdjustQuantityModal';
 
@@ -126,6 +126,9 @@ export default function Inventory() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Image
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Name
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -151,6 +154,19 @@ export default function Inventory() {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredInventory.map((item) => (
                     <tr key={item.id}>
+                      <td className="whitespace-nowrap px-3 py-4">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="h-12 w-12 object-cover rounded-lg border border-gray-200"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Image className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                         {item.name}
                       </td>
