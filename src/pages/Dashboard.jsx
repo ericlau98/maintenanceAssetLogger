@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Package, Box, ClipboardList, AlertCircle, Leaf, Activity, TrendingUp } from 'lucide-react';
 
@@ -154,15 +155,15 @@ export default function Dashboard() {
             Quick Actions
           </h2>
           <div className="space-y-3">
-            <a href="/assets" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
+            <Link to="/assets" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
               <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Add New Asset</span>
-            </a>
-            <a href="/inventory" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
+            </Link>
+            <Link to="/inventory" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
               <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Add Inventory Item</span>
-            </a>
-            <a href="/logs" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
+            </Link>
+            <Link to="/logs" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
               <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Create Maintenance Log</span>
-            </a>
+            </Link>
           </div>
         </div>
 
