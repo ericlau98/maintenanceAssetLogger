@@ -71,10 +71,10 @@ export default function Assets() {
   }
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="sm:flex sm:items-center">
+    <div>
+      <div className="sm:flex sm:items-center mb-4">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Assets</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Assets</h1>
           <p className="mt-2 text-sm text-gray-700">
             A list of all assets including their status and details.
           </p>
@@ -83,7 +83,7 @@ export default function Assets() {
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
             <button
               onClick={() => setShowForm(true)}
-              className="inline-flex items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-brand-green to-brand-dark-green px-4 py-2 text-sm font-medium text-white shadow-lg hover:from-brand-dark-green hover:to-leaf-green-700 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 sm:w-auto transition-all duration-200"
+              className="w-full sm:w-auto inline-flex items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-brand-green to-brand-dark-green px-4 py-3 sm:py-2 text-sm font-medium text-white shadow-lg hover:from-brand-dark-green hover:to-leaf-green-700 focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 transition-all duration-200"
             >
               <Plus className="h-4 w-4 mr-1" />
               Add Asset
@@ -107,7 +107,75 @@ export default function Assets() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col">
+      {/* Mobile Card View */}
+      <div className="block sm:hidden space-y-3">
+        {filteredAssets.map((asset) => (
+          <div key={asset.id} className="bg-white shadow rounded-lg p-4 border border-gray-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center mb-2">
+                  {asset.image_url ? (
+                    <img
+                      src={asset.image_url}
+                      alt={asset.name}
+                      className="h-12 w-12 object-cover rounded-lg border border-gray-200 mr-3"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                      <Image className="h-6 w-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">{asset.name}</h3>
+                    <p className="text-xs text-gray-500">{asset.serial_number}</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center text-xs">
+                    <span className="text-gray-500 w-20">Category:</span>
+                    <span className="text-gray-900">{asset.category}</span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <span className="text-gray-500 w-20">Status:</span>
+                    <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                      asset.status === 'active' 
+                        ? 'bg-brand-light text-brand-dark-green'
+                        : asset.status === 'maintenance'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {asset.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <span className="text-gray-500 w-20">Location:</span>
+                    <span className="text-gray-900">{asset.location}</span>
+                  </div>
+                </div>
+              </div>
+              {isAdmin && (
+                <div className="flex space-x-2 ml-2">
+                  <button
+                    onClick={() => handleEdit(asset)}
+                    className="p-2 text-brand-green hover:text-brand-dark-green transition-colors"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(asset.id)}
+                    className="p-2 text-red-600 hover:text-red-900"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden sm:block mt-8">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">

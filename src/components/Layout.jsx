@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -7,90 +8,62 @@ import {
   LogOut, 
   Home,
   ClipboardList,
-  Box
+  Box,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function Layout() {
   const { user, profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
+  const navLinks = [
+    { to: '/', label: 'Dashboard', icon: Home },
+    { to: '/assets', label: 'Assets', icon: Wrench },
+    { to: '/inventory', label: 'Inventory', icon: Box },
+    { to: '/logs', label: 'Logs', icon: ClipboardList },
+    ...(isAdmin ? [{ to: '/users', label: 'Users', icon: Users }] : [])
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-brand-light/20">
       <nav className="bg-white shadow-lg border-b border-brand-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-20">
-            <div className="flex">
+          <div className="flex justify-between h-16 sm:h-20">
+            <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
-                <img src="/logo.jpg" alt="Great Lakes Greenhouses" className="h-12 w-auto" />
+                <img src="/logo.jpg" alt="Great Lakes Greenhouses" className="h-10 sm:h-12 w-auto" />
               </div>
-              <div className="hidden sm:ml-8 sm:flex sm:space-x-6">
-                <Link
-                  to="/"
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                    location.pathname === '/' 
-                      ? 'text-brand-green border-brand-green' 
-                      : 'text-gray-700 border-transparent hover:text-brand-dark-green hover:border-brand-light'
-                  }`}
-                >
-                  <Home className="h-4 w-4 mr-1" />
-                  Dashboard
-                </Link>
-                <Link
-                  to="/assets"
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                    location.pathname === '/assets' 
-                      ? 'text-brand-green border-brand-green' 
-                      : 'text-gray-700 border-transparent hover:text-brand-dark-green hover:border-brand-light'
-                  }`}
-                >
-                  <Wrench className="h-4 w-4 mr-1" />
-                  Assets
-                </Link>
-                <Link
-                  to="/inventory"
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                    location.pathname === '/inventory' 
-                      ? 'text-brand-green border-brand-green' 
-                      : 'text-gray-700 border-transparent hover:text-brand-dark-green hover:border-brand-light'
-                  }`}
-                >
-                  <Box className="h-4 w-4 mr-1" />
-                  Inventory
-                </Link>
-                <Link
-                  to="/logs"
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                    location.pathname === '/logs' 
-                      ? 'text-brand-green border-brand-green' 
-                      : 'text-gray-700 border-transparent hover:text-brand-dark-green hover:border-brand-light'
-                  }`}
-                >
-                  <ClipboardList className="h-4 w-4 mr-1" />
-                  Logs
-                </Link>
-                {isAdmin && (
+              
+              {/* Desktop Navigation */}
+              <div className="hidden md:ml-8 md:flex md:space-x-6">
+                {navLinks.map(({ to, label, icon: Icon }) => (
                   <Link
-                    to="/users"
+                    key={to}
+                    to={to}
                     className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                      location.pathname === '/users' 
+                      location.pathname === to 
                         ? 'text-brand-green border-brand-green' 
                         : 'text-gray-700 border-transparent hover:text-brand-dark-green hover:border-brand-light'
                     }`}
                   >
-                    <Users className="h-4 w-4 mr-1" />
-                    Users
+                    <Icon className="h-4 w-4 mr-1" />
+                    {label}
                   </Link>
-                )}
+                ))}
               </div>
             </div>
-            <div className="flex items-center">
-              <div className="mr-4">
+
+            {/* Desktop User Info */}
+            <div className="hidden md:flex items-center space-x-4">
+              <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">
                   {profile?.full_name || user?.email}
                 </p>
@@ -103,17 +76,83 @@ export default function Layout() {
               </div>
               <button
                 onClick={handleSignOut}
-                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                className="inline-flex items-center px-3 py-2 border border-red-300 text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
               >
                 <LogOut className="h-4 w-4 mr-1" />
-                Sign Out
+                <span className="hidden lg:inline">Sign Out</span>
+              </button>
+            </div>
+
+            {/* Mobile menu button */}
+            <div className="flex items-center md:hidden">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-brand-dark-green hover:bg-brand-light focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-green"
+              >
+                <span className="sr-only">Open main menu</span>
+                {mobileMenuOpen ? (
+                  <X className="block h-6 w-6" />
+                ) : (
+                  <Menu className="block h-6 w-6" />
+                )}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden">
+            <div className="pt-2 pb-3 space-y-1">
+              {navLinks.map(({ to, label, icon: Icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors ${
+                    location.pathname === to
+                      ? 'bg-brand-light border-brand-green text-brand-dark-green'
+                      : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <Icon className="h-5 w-5 mr-2" />
+                    {label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <div className="pt-4 pb-3 border-t border-gray-200">
+              <div className="flex items-center px-4">
+                <div className="flex-1">
+                  <div className="text-base font-medium text-gray-800">
+                    {profile?.full_name || user?.email}
+                  </div>
+                  {isAdmin && (
+                    <span className="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-medium bg-brand-light text-brand-dark-green rounded">
+                      <Leaf className="h-3 w-3 mr-1" />
+                      Admin
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3 space-y-1">
+                <button
+                  onClick={handleSignOut}
+                  className="block w-full text-left px-4 py-2 text-base font-medium text-red-700 hover:bg-red-50 transition-colors"
+                >
+                  <span className="flex items-center">
+                    <LogOut className="h-5 w-5 mr-2" />
+                    Sign Out
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
         <Outlet />
       </main>
     </div>

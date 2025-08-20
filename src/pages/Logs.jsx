@@ -197,9 +197,9 @@ export default function Logs() {
         </div>
       </div>
 
-      <div className="mt-8 space-y-4">
+      <div className="mt-6 sm:mt-8 space-y-4">
         {filteredLogs.map((log) => (
-          <div key={log.id} className="bg-white shadow rounded-lg p-6">
+          <div key={log.id} className="bg-white shadow rounded-lg p-4 sm:p-6">
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <div className="flex items-center space-x-3">

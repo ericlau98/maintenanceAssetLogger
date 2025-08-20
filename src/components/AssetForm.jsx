@@ -61,21 +61,21 @@ export default function AssetForm({ asset, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex justify-between items-center p-6 border-b border-brand-light bg-gradient-to-r from-white to-brand-light/30">
-          <h2 className="text-xl font-semibold">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="sticky top-0 bg-white flex justify-between items-center p-4 sm:p-6 border-b border-brand-light bg-gradient-to-r from-white to-brand-light/30 z-10">
+          <h2 className="text-lg sm:text-xl font-semibold">
             {asset ? 'Edit Asset' : 'Add New Asset'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-gray-500 p-1 sm:p-0"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}

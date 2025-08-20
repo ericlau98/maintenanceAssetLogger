@@ -247,21 +247,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="mt-8">
-        <div className="bg-white shadow-lg rounded-xl p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+      <div className="mt-6 sm:mt-8">
+        <div className="bg-white shadow-lg rounded-xl p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-4 flex items-center">
             <Leaf className="h-5 w-5 mr-2 text-brand-green" />
             Quick Actions
           </h2>
-          <div className="space-y-3">
-            <Link to="/assets" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
-              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ View Assets</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Link to="/assets" className="block p-4 sm:p-5 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group touch-manipulation">
+              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green text-sm sm:text-base">→ View Assets</span>
             </Link>
-            <Link to="/inventory" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
-              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ View Inventory</span>
+            <Link to="/inventory" className="block p-4 sm:p-5 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group touch-manipulation">
+              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green text-sm sm:text-base">→ View Inventory</span>
             </Link>
-            <Link to="/logs" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
-              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Create Maintenance Log</span>
+            <Link to="/logs" className="block p-4 sm:p-5 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group touch-manipulation">
+              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green text-sm sm:text-base">→ Create Log</span>
             </Link>
           </div>
         </div>
