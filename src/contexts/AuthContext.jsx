@@ -32,6 +32,10 @@ export const AuthProvider = ({ children }) => {
     fetchUserAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
+      }
+      
       if (session?.user) {
         setUser(session.user);
         
@@ -48,8 +52,23 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
+    // Set up a periodic session check every 30 seconds
+    const sessionCheckInterval = setInterval(async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
+        // Try to refresh the session
+        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !newSession) {
+          console.error('Session expired, redirecting to login');
+          setUser(null);
+          setProfile(null);
+        }
+      }
+    }, 30000); // Check every 30 seconds
+
     return () => {
       authListener?.subscription.unsubscribe();
+      clearInterval(sessionCheckInterval);
     };
   }, []);
 

@@ -22,6 +22,17 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
+      // Check session before making queries
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // Try to refresh
+        const { data: { session: newSession } } = await supabase.auth.refreshSession();
+        if (!newSession) {
+          setLoading(false);
+          return;
+        }
+      }
+
       // Build the logs query based on user role
       let logsQuery = supabase
         .from('maintenance_logs')
@@ -59,6 +70,17 @@ export default function Dashboard() {
         logsQuery
       ]);
 
+      // Check for auth errors and retry if needed
+      if (assets.error?.code === 'PGRST301' || inventory.error?.code === 'PGRST301' || 
+          logs.error?.code === 'PGRST301' || recentLogsData.error?.code === 'PGRST301') {
+        console.log('Auth error detected, refreshing session...');
+        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+        if (refreshedSession) {
+          // Retry the fetch
+          return fetchDashboardStats();
+        }
+      }
+
       const activeAssets = assets.data?.filter(a => a.status === 'active').length || 0;
       const lowStock = inventory.data?.filter(i => i.quantity <= i.min_quantity).length || 0;
 
@@ -73,6 +95,8 @@ export default function Dashboard() {
       setRecentLogs(recentLogsData.data || []);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      // Try to refresh session on error
+      await supabase.auth.refreshSession();
     } finally {
       setLoading(false);
     }
