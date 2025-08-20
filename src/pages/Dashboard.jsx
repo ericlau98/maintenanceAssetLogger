@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Package, Box, ClipboardList, AlertCircle, Leaf, Activity, TrendingUp, Clock, Wrench, MessageSquare, Eye, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Package, Box, ClipboardList, AlertCircle, Leaf, TrendingUp, Clock, Wrench, MessageSquare, Eye, User } from 'lucide-react';
 
 export default function Dashboard() {
+  const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState({
     totalAssets: 0,
     activeAssets: 0,
@@ -20,6 +22,33 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
+      // Build the logs query based on user role
+      let logsQuery = supabase
+        .from('maintenance_logs')
+        .select(`
+          id,
+          log_type,
+          description,
+          created_at,
+          asset_id,
+          user_id,
+          assets (
+            name,
+            serial_number
+          ),
+          profiles (
+            full_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      // If not admin, only show user's own logs
+      if (!isAdmin && user) {
+        logsQuery = logsQuery.eq('user_id', user.id);
+      }
+
       const [assets, inventory, logs, recentLogsData] = await Promise.all([
         supabase.from('assets').select('status', { count: 'exact' }),
         supabase.from('inventory').select('quantity, min_quantity', { count: 'exact' }),
@@ -27,26 +56,7 @@ export default function Dashboard() {
           .from('maintenance_logs')
           .select('id')
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-        supabase
-          .from('maintenance_logs')
-          .select(`
-            id,
-            log_type,
-            description,
-            created_at,
-            asset_id,
-            user_id,
-            assets (
-              name,
-              serial_number
-            ),
-            profiles (
-              full_name,
-              email
-            )
-          `)
-          .order('created_at', { ascending: false })
-          .limit(5)
+        logsQuery
       ]);
 
       const activeAssets = assets.data?.filter(a => a.status === 'active').length || 0;
@@ -213,7 +223,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="mt-8">
         <div className="bg-white shadow-lg rounded-xl p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
             <Leaf className="h-5 w-5 mr-2 text-brand-green" />
@@ -221,34 +231,14 @@ export default function Dashboard() {
           </h2>
           <div className="space-y-3">
             <Link to="/assets" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
-              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Add New Asset</span>
+              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ View Assets</span>
             </Link>
             <Link to="/inventory" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
-              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Add Inventory Item</span>
+              <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ View Inventory</span>
             </Link>
             <Link to="/logs" className="block p-4 border-2 border-brand-light rounded-lg hover:bg-brand-light hover:border-brand-green transition-all duration-200 group">
               <span className="font-medium text-gray-900 group-hover:text-brand-dark-green">→ Create Maintenance Log</span>
             </Link>
-          </div>
-        </div>
-
-        <div className="bg-white shadow-lg rounded-xl p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-            <Activity className="h-5 w-5 mr-2 text-brand-green" />
-            System Status
-          </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-brand-light/30 rounded-lg">
-              <span className="font-medium">Database Connection</span>
-              <span className="text-brand-dark-green font-semibold flex items-center">
-                <span className="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                Connected
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-brand-light/30 rounded-lg">
-              <span className="font-medium">Last Sync</span>
-              <span className="text-gray-600">Just now</span>
-            </div>
           </div>
         </div>
       </div>
@@ -258,7 +248,7 @@ export default function Dashboard() {
         <div className="bg-white shadow-lg rounded-xl p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
             <Clock className="h-5 w-5 mr-2 text-brand-green" />
-            Recent Maintenance Logs
+            {isAdmin ? 'Recent Maintenance Logs' : 'My Recent Logs'}
           </h2>
           
           {recentLogs.length > 0 ? (
@@ -287,10 +277,12 @@ export default function Dashboard() {
                       </p>
                       
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
-                        <div className="flex items-center">
-                          <User className="h-3 w-3 mr-1" />
-                          <span>{log.profiles?.full_name || log.profiles?.email || 'Unknown User'}</span>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex items-center">
+                            <User className="h-3 w-3 mr-1" />
+                            <span>{log.profiles?.full_name || log.profiles?.email || 'Unknown User'}</span>
+                          </div>
+                        )}
                         <div className="flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
                           <span>{formatTimeAgo(log.created_at)}</span>
@@ -314,7 +306,7 @@ export default function Dashboard() {
           ) : (
             <div className="text-center py-8 text-gray-500">
               <ClipboardList className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p>No maintenance logs yet</p>
+              <p>{isAdmin ? 'No maintenance logs yet' : 'You haven\'t created any logs yet'}</p>
               <Link 
                 to="/logs" 
                 className="mt-2 inline-block text-sm font-medium text-brand-green hover:text-brand-dark-green transition-colors"
