@@ -64,7 +64,7 @@ This setup uses Microsoft Graph API with your existing Microsoft 365 email accou
    supabase secrets set MICROSOFT_TENANT_ID="your-tenant-id"
    supabase secrets set MICROSOFT_CLIENT_ID="your-client-id"
    supabase secrets set MICROSOFT_CLIENT_SECRET="your-client-secret"
-   supabase secrets set MICROSOFT_FROM_EMAIL="noreply@greatlakesg.com"
+   supabase secrets set MICROSOFT_FROM_EMAIL="your-email@domain.com"
    ```
 
 ## How Email Processing Works
