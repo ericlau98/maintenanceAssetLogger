@@ -63,6 +63,7 @@ export default function PublicTicket() {
   });
 
   useEffect(() => {
+    console.log('PublicTicket component mounted');
     initializeMsal();
     fetchDepartments();
   }, []);
@@ -146,23 +147,39 @@ export default function PublicTicket() {
 
   const fetchDepartments = async () => {
     try {
-      console.log('Fetching departments...');
+      console.log('Starting department fetch...');
+      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('Using anon key:', import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 20) + '...');
+      
       const { data, error } = await supabase
         .from('departments')
         .select('*')
         .order('name');
       
       if (error) {
-        console.error('Supabase error fetching departments:', error);
+        console.error('Supabase error fetching departments:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
       
-      console.log('Departments fetched:', data);
+      console.log('Departments fetched successfully:', data);
+      console.log('Number of departments:', data?.length || 0);
       setDepartments(data || []);
+      
+      // Debug: Check if departments state is set
+      if (!data || data.length === 0) {
+        console.warn('No departments returned from database');
+      }
     } catch (error) {
-      console.error('Error fetching departments:', error);
-      // Show user-friendly error
-      setError('Unable to load departments. Please refresh the page.');
+      console.error('Error in fetchDepartments:', error);
+      // Show user-friendly error but don't set error state if user is not logged in yet
+      if (microsoftUser) {
+        setError('Unable to load departments. Please refresh the page.');
+      }
     }
   };
 
@@ -357,19 +374,27 @@ Great Lakes Greenhouses Support Team`,
                 {/* Department Selection */}
                 <div>
                   <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                    Department *
+                    Department * {departments.length === 0 && <span className="text-red-500">(Loading...)</span>}
                   </label>
                   <select
                     id="department"
                     required
                     value={formData.department_id}
-                    onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                    onChange={(e) => {
+                      console.log('Department selected:', e.target.value);
+                      setFormData({...formData, department_id: e.target.value});
+                    }}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-green focus:ring-brand-green"
                   >
                     <option value="">Select a department</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
+                    {console.log('Rendering departments in dropdown:', departments)}
+                    {departments.length > 0 ? (
+                      departments.map(dept => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      ))
+                    ) : (
+                      <option disabled>No departments available</option>
+                    )}
                   </select>
                 </div>
 
