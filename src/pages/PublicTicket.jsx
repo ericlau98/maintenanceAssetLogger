@@ -29,6 +29,13 @@ const msalConfig = {
   },
 };
 
+// Debug: Log the config to check if env vars are loaded
+console.log('MSAL Config Debug:', {
+  clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID,
+  tenantId: import.meta.env.VITE_MICROSOFT_TENANT_ID,
+  redirectUri: window.location.origin + '/submit-ticket'
+});
+
 const loginRequest = {
   scopes: ['openid', 'profile', 'email'],
 };
@@ -101,10 +108,29 @@ export default function PublicTicket() {
   const handleMicrosoftLogin = async () => {
     try {
       setError('');
+      
+      // Debug: Check if client ID is present
+      if (!import.meta.env.VITE_MICROSOFT_CLIENT_ID) {
+        console.error('Missing VITE_MICROSOFT_CLIENT_ID');
+        setError('Microsoft authentication is not configured. Please contact support.');
+        return;
+      }
+      
+      console.log('Attempting login with config:', {
+        clientId: msalConfig.auth.clientId,
+        authority: msalConfig.auth.authority,
+        redirectUri: msalConfig.auth.redirectUri
+      });
+      
       await msalInstance.loginRedirect(loginRequest);
     } catch (error) {
-      console.error('Login error:', error);
-      setError('Failed to sign in with Microsoft. Please try again.');
+      console.error('Login error details:', {
+        error: error,
+        message: error.message,
+        errorCode: error.errorCode,
+        errorMessage: error.errorMessage
+      });
+      setError(`Failed to sign in: ${error.errorMessage || error.message || 'Unknown error'}`);
     }
   };
 
@@ -120,15 +146,23 @@ export default function PublicTicket() {
 
   const fetchDepartments = async () => {
     try {
+      console.log('Fetching departments...');
       const { data, error } = await supabase
         .from('departments')
         .select('*')
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching departments:', error);
+        throw error;
+      }
+      
+      console.log('Departments fetched:', data);
       setDepartments(data || []);
     } catch (error) {
       console.error('Error fetching departments:', error);
+      // Show user-friendly error
+      setError('Unable to load departments. Please refresh the page.');
     }
   };
 
@@ -164,7 +198,7 @@ export default function PublicTicket() {
       if (ticketError) throw ticketError;
 
       // Queue confirmation email
-      const { error: emailError } = await supabase
+      const { data: emailData, error: emailError } = await supabase
         .from('email_queue')
         .insert({
           ticket_id: ticket.id,
@@ -185,11 +219,17 @@ Thank you for submitting your request.
 
 Best regards,
 Great Lakes Greenhouses Support Team`,
-          template_type: 'ticket_created'
-        });
+          template_type: 'ticket_created',
+          status: 'pending'
+        })
+        .select()
+        .single();
 
       if (emailError) {
         console.error('Error queuing email:', emailError);
+        // Don't fail the ticket creation if email fails
+      } else {
+        console.log('Email queued successfully:', emailData);
       }
 
       setSuccess(true);
@@ -473,11 +513,6 @@ Great Lakes Greenhouses Support Team`,
               </form>
             </div>
 
-            {/* Help Text */}
-            <div className="mt-6 text-center text-sm text-gray-600">
-              <p>Need immediate assistance? Call us at (555) 123-4567</p>
-              <p className="mt-1">Office hours: Monday - Friday, 8:00 AM - 5:00 PM EST</p>
-            </div>
           </>
         )}
       </div>
