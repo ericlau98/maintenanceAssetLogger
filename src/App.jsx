@@ -12,6 +12,7 @@ import Inventory from './pages/Inventory';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
 import Tickets from './pages/Tickets';
+import PublicTicket from './pages/PublicTicket';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/submit-ticket" element={<PublicTicket />} />
           <Route path="/" element={
             <PrivateRoute>
               <Layout />

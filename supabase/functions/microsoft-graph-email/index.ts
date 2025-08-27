@@ -111,7 +111,9 @@ async function checkInbox(accessToken: string, emailAddress: string, since?: str
   // Build filter query
   let filter = `isRead eq false`
   if (since) {
-    filter += ` and receivedDateTime ge ${since}`
+    // Convert to ISO 8601 format that Microsoft Graph expects
+    const sinceDate = new Date(since).toISOString()
+    filter += ` and receivedDateTime ge ${sinceDate}`
   }
   
   const messagesEndpoint = `https://graph.microsoft.com/v1.0/users/${emailAddress}/messages?$filter=${encodeURIComponent(filter)}&$top=50&$orderby=receivedDateTime desc`
@@ -231,7 +233,7 @@ serve(async (req) => {
           .from('system_settings')
           .select('value')
           .eq('key', 'last_email_check')
-          .single()
+          .maybeSingle() // Use maybeSingle instead of single to handle no rows
         
         const since = lastCheck?.value || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         
@@ -278,7 +280,7 @@ serve(async (req) => {
               // Update ticket status if it was on hold
               await supabase
                 .from('tickets')
-                .update({ status: 'todo' })
+                .update({ status: 'to_do' })
                 .eq('id', ticket.id)
                 .eq('status', 'on_hold')
             }
@@ -299,7 +301,7 @@ serve(async (req) => {
                   department_id: department.id,
                   requester_email: fromAddress,
                   requester_name: email.from.emailAddress.name || fromAddress.split('@')[0],
-                  status: 'todo',
+                  status: 'to_do', // Changed from 'todo' to 'to_do' to match schema
                   priority: 'medium',
                   email_thread_id: email.conversationId
                 })
