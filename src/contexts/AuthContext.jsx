@@ -16,14 +16,40 @@ export const AuthProvider = ({ children }) => {
       
       if (session?.user) {
         setUser(session.user);
+        console.log('Session user:', session.user);
         
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('*, department:departments!profiles_department_id_fkey(*)')
           .eq('id', session.user.id)
           .single();
-          
-        setProfile(profileData);
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          // If profile doesn't exist, create it
+          if (profileError.code === 'PGRST116') {
+            console.log('Profile not found, creating one...');
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: session.user.id,
+                email: session.user.email,
+                full_name: session.user.user_metadata?.full_name || '',
+                role: 'user'
+              })
+              .select('*, department:departments!profiles_department_id_fkey(*)')
+              .single();
+            
+            if (createError) {
+              console.error('Error creating profile:', createError);
+            } else {
+              setProfile(newProfile);
+            }
+          }
+        } else {
+          console.log('Profile data:', profileData);
+          setProfile(profileData);
+        }
       }
       
       setLoading(false);
@@ -46,13 +72,17 @@ export const AuthProvider = ({ children }) => {
       if (session?.user) {
         setUser(session.user);
         
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('*, department:departments!profiles_department_id_fkey(*)')
           .eq('id', session.user.id)
           .single();
-          
-        setProfile(profileData);
+        
+        if (profileError) {
+          console.error('Auth state change - Error fetching profile:', profileError);
+        } else {
+          setProfile(profileData);
+        }
       } else {
         setUser(null);
         setProfile(null);
@@ -119,12 +149,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const isAdmin = profile?.role === 'admin';
+  // Role checking helpers
+  const isGlobalAdmin = profile?.role === 'global_admin' || profile?.role === 'admin';
+  const isMaintenanceAdmin = profile?.role === 'maintenance_admin';
+  const isElectricalAdmin = profile?.role === 'electrical_admin';
+  const isDepartmentAdmin = isMaintenanceAdmin || isElectricalAdmin;
+  const isAnyAdmin = isGlobalAdmin || isDepartmentAdmin;
+  const isAdmin = isAnyAdmin; // Backward compatibility
+  
+  // Check if user can manage a specific department
+  const canManageDepartment = (departmentId) => {
+    if (isGlobalAdmin) return true;
+    if (isDepartmentAdmin && profile?.department_id === departmentId) return true;
+    return false;
+  };
 
   const value = {
     user,
     profile,
     isAdmin,
+    isGlobalAdmin,
+    isMaintenanceAdmin,
+    isElectricalAdmin,
+    isDepartmentAdmin,
+    isAnyAdmin,
+    canManageDepartment,
     loading,
     signUp,
     signIn,

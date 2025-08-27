@@ -11,6 +11,7 @@ import Assets from './pages/Assets';
 import Inventory from './pages/Inventory';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
+import Tickets from './pages/Tickets';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="assets" element={<Assets />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="logs" element={<Logs />} />
+            <Route path="tickets" element={<Tickets />} />
             <Route path="users" element={
               <PrivateRoute adminOnly={true}>
                 <Users />

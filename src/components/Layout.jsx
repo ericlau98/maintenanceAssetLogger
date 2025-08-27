@@ -10,11 +10,12 @@ import {
   ClipboardList,
   Box,
   Menu,
-  X
+  X,
+  Ticket
 } from 'lucide-react';
 
 export default function Layout() {
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut, isAdmin, isAnyAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -40,10 +41,11 @@ export default function Layout() {
 
   const navLinks = [
     { to: '/', label: 'Dashboard', icon: Home },
+    { to: '/tickets', label: 'Tickets', icon: Ticket },
     { to: '/assets', label: 'Assets', icon: Wrench },
     { to: '/inventory', label: 'Inventory', icon: Box },
     { to: '/logs', label: 'Logs', icon: ClipboardList },
-    ...(isAdmin ? [{ to: '/users', label: 'Users', icon: Users }] : [])
+    ...(isAnyAdmin ? [{ to: '/users', label: 'Users', icon: Users }] : [])
   ];
 
   return (
@@ -81,10 +83,12 @@ export default function Layout() {
                 <p className="text-sm font-medium text-gray-900">
                   {profile?.full_name || user?.email}
                 </p>
-                {isAdmin && (
+                {isAnyAdmin && (
                   <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-brand-light text-brand-dark-green rounded">
                     <Leaf className="h-3 w-3 mr-1" />
-                    Admin
+                    {profile?.role === 'global_admin' ? 'Global Admin' : 
+                     profile?.role === 'maintenance_admin' ? 'Maintenance Admin' :
+                     profile?.role === 'electrical_admin' ? 'Electrical Admin' : 'Admin'}
                   </span>
                 )}
               </div>
@@ -142,10 +146,12 @@ export default function Layout() {
                   <div className="text-base font-medium text-gray-800">
                     {profile?.full_name || user?.email}
                   </div>
-                  {isAdmin && (
+                  {isAnyAdmin && (
                     <span className="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-medium bg-brand-light text-brand-dark-green rounded">
                       <Leaf className="h-3 w-3 mr-1" />
-                      Admin
+                      {profile?.role === 'global_admin' ? 'Global Admin' : 
+                       profile?.role === 'maintenance_admin' ? 'Maintenance Admin' :
+                       profile?.role === 'electrical_admin' ? 'Electrical Admin' : 'Admin'}
                     </span>
                   )}
                 </div>

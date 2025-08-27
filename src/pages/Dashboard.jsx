@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Box, ClipboardList, AlertCircle, Leaf, TrendingUp, Clock, Wrench, MessageSquare, Eye, User, Activity } from 'lucide-react';
+import { Package, Box, ClipboardList, AlertCircle, Leaf, TrendingUp, Clock, Wrench, MessageSquare, Eye, User, Activity, Ticket } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
@@ -12,6 +12,7 @@ export default function Dashboard() {
     inventoryItems: 0,
     lowStockItems: 0,
     recentLogs: 0,
+    openTickets: 0,
   });
   const [recentLogs, setRecentLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,19 +61,24 @@ export default function Dashboard() {
         logsQuery = logsQuery.eq('user_id', user.id);
       }
 
-      const [assets, inventory, logs, recentLogsData] = await Promise.all([
+      const [assets, inventory, logs, recentLogsData, tickets] = await Promise.all([
         supabase.from('assets').select('status', { count: 'exact' }),
         supabase.from('inventory').select('quantity, min_quantity', { count: 'exact' }),
         supabase
           .from('maintenance_logs')
           .select('id')
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-        logsQuery
+        logsQuery,
+        supabase
+          .from('tickets')
+          .select('status', { count: 'exact' })
+          .in('status', ['to_do', 'in_progress', 'review'])
       ]);
 
       // Check for auth errors and retry if needed
       if (assets.error?.code === 'PGRST301' || inventory.error?.code === 'PGRST301' || 
-          logs.error?.code === 'PGRST301' || recentLogsData.error?.code === 'PGRST301') {
+          logs.error?.code === 'PGRST301' || recentLogsData.error?.code === 'PGRST301' ||
+          tickets.error?.code === 'PGRST301') {
         console.log('Auth error detected, refreshing session...');
         const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
         if (refreshedSession) {
@@ -90,6 +96,7 @@ export default function Dashboard() {
         inventoryItems: inventory.count || 0,
         lowStockItems: lowStock,
         recentLogs: logs.data?.length || 0,
+        openTickets: tickets.count || 0,
       });
 
       setRecentLogs(recentLogsData.data || []);
@@ -242,6 +249,34 @@ export default function Dashboard() {
               <span className="font-medium text-gray-600">
                 Last 7 days
               </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow-lg rounded-xl hover:shadow-xl transition-shadow duration-200">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-brand-light rounded-lg p-3">
+                <Ticket className="h-6 w-6 text-brand-dark-green" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Open Tickets
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.openTickets}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gradient-to-r from-brand-light to-leaf-green-50 px-5 py-3">
+            <div className="text-sm">
+              <Link to="/tickets" className="font-medium text-brand-dark-green hover:text-brand-green flex items-center transition-colors">
+                <span>View all tickets</span>
+                <span className="ml-1">→</span>
+              </Link>
             </div>
           </div>
         </div>
