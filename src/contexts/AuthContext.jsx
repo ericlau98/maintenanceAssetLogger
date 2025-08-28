@@ -9,50 +9,78 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
+    let timeoutId;
+    
     const fetchUserAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        console.log('Session user:', session.user);
+      try {
+        // Set a timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          console.warn('Auth check timeout - setting loading to false');
+          setLoading(false);
+        }, 10000); // 10 second timeout
         
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*, department:departments!profiles_department_id_fkey(*)')
-          .eq('id', session.user.id)
-          .single();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-          // If profile doesn't exist, create it
-          if (profileError.code === 'PGRST116') {
-            console.log('Profile not found, creating one...');
-            const { data: newProfile, error: createError } = await supabase
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          setConnectionError(true);
+          setLoading(false);
+          clearTimeout(timeoutId);
+          return;
+        }
+        
+        setConnectionError(false);
+        
+        if (session?.user) {
+          setUser(session.user);
+          console.log('Session user:', session.user);
+          
+          try {
+            const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .insert({
-                id: session.user.id,
-                email: session.user.email,
-                full_name: session.user.user_metadata?.full_name || '',
-                role: 'user'
-              })
               .select('*, department:departments!profiles_department_id_fkey(*)')
+              .eq('id', session.user.id)
               .single();
             
-            if (createError) {
-              console.error('Error creating profile:', createError);
+            if (profileError) {
+              console.error('Error fetching profile:', profileError);
+              // If profile doesn't exist, create it
+              if (profileError.code === 'PGRST116') {
+                console.log('Profile not found, creating one...');
+                const { data: newProfile, error: createError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    id: session.user.id,
+                    email: session.user.email,
+                    full_name: session.user.user_metadata?.full_name || '',
+                    role: 'user'
+                  })
+                  .select('*, department:departments!profiles_department_id_fkey(*)')
+                  .single();
+                
+                if (createError) {
+                  console.error('Error creating profile:', createError);
+                } else {
+                  setProfile(newProfile);
+                }
+              }
             } else {
-              setProfile(newProfile);
+              console.log('Profile data:', profileData);
+              setProfile(profileData);
             }
+          } catch (profileErr) {
+            console.error('Unexpected error fetching profile:', profileErr);
           }
-        } else {
-          console.log('Profile data:', profileData);
-          setProfile(profileData);
         }
+      } catch (error) {
+        console.error('Error in fetchUserAndProfile:', error);
+      } finally {
+        setLoading(false);
+        clearTimeout(timeoutId);
       }
-      
-      setLoading(false);
     };
 
     fetchUserAndProfile();
@@ -108,6 +136,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       authListener?.subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
+      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -170,6 +199,13 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
 
+  const retryConnection = () => {
+    console.log('Retrying connection...');
+    setLoading(true);
+    setConnectionError(false);
+    window.location.reload();
+  };
+
   const value = {
     user,
     profile,
@@ -181,6 +217,8 @@ export const AuthProvider = ({ children }) => {
     isAnyAdmin,
     canManageDepartment,
     loading,
+    connectionError,
+    retryConnection,
     signUp,
     signIn,
     signOut,
