@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, Leaf, Sprout, TreePine, Flower2, Mail, Lock, ArrowRight } from 'lucide-react';
 
@@ -126,16 +126,11 @@ export default function Login() {
                 )}
               </button>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-center">
                 <div className="text-sm">
                   <a href="#" className="font-medium text-brand-green hover:text-brand-dark-green transition-colors">
                     Forgot your password?
                   </a>
-                </div>
-                <div className="text-sm">
-                  <Link to="/register" className="font-medium text-brand-green hover:text-brand-dark-green transition-colors">
-                    Create account →
-                  </Link>
                 </div>
               </div>
             </div>

@@ -28,7 +28,6 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState(null);
   const [newUser, setNewUser] = useState({
     email: '',
-    password: '',
     full_name: '',
     role: 'user',
     department_id: ''
@@ -82,7 +81,7 @@ export default function Users() {
   };
 
   const handleAddUser = async () => {
-    if (!newUser.email || !newUser.password || !newUser.full_name) {
+    if (!newUser.email || !newUser.full_name) {
       alert('Please fill in all required fields');
       return;
     }
@@ -93,10 +92,16 @@ export default function Users() {
       : newUser.department_id;
 
     try {
-      // Create auth user with admin API (requires service role key in production)
+      // Generate a random temporary password
+      const tempPassword = Math.random().toString(36).slice(-8) + 
+                          Math.random().toString(36).slice(-8).toUpperCase() + 
+                          '!@#$%^&*'.charAt(Math.floor(Math.random() * 8)) + 
+                          Math.floor(Math.random() * 100);
+
+      // Create auth user with temporary password
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newUser.email,
-        password: newUser.password,
+        password: tempPassword,
         options: {
           data: {
             full_name: newUser.full_name,
@@ -124,7 +129,43 @@ export default function Users() {
         throw profileError;
       }
 
-      alert(`User created successfully! They will receive a confirmation email at ${newUser.email}`);
+      // Generate password reset link and send welcome email
+      const { data: resetData, error: resetError } = await supabase.auth.resetPasswordForEmail(
+        newUser.email,
+        {
+          redirectTo: `${window.location.origin}/login`,
+        }
+      );
+
+      if (resetError) {
+        console.error('Error sending password reset email:', resetError);
+        // Don't throw here - user is created, just email failed
+        alert(`User created but email failed to send. Please manually send a password reset to ${newUser.email}`);
+      } else {
+        // Send a custom welcome email via our edge function
+        try {
+          const { error: emailError } = await supabase.functions.invoke('send-auth-email', {
+            body: {
+              type: 'admin_created',
+              email: newUser.email,
+              data: {
+                full_name: newUser.full_name,
+                admin_name: profile?.full_name || 'Administrator',
+                confirmation_url: `${window.location.origin}/login#recovery-token` // This will be replaced by the actual reset link
+              }
+            }
+          });
+
+          if (emailError) {
+            console.error('Error sending welcome email:', emailError);
+          }
+        } catch (emailError) {
+          console.error('Error invoking email function:', emailError);
+        }
+
+        alert(`User created successfully! A welcome email with password setup instructions has been sent to ${newUser.email}`);
+      }
+
       setShowAddUser(false);
       setNewUser({
         email: '',
@@ -437,7 +478,6 @@ export default function Users() {
                   setShowAddUser(false);
                   setNewUser({
                     email: '',
-                    password: '',
                     full_name: '',
                     role: 'user',
                     department_id: ''
@@ -472,15 +512,13 @@ export default function Users() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Password *</label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-green focus:ring-brand-green"
-                  placeholder="Min 6 characters"
-                />
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex items-start">
+                  <Mail className="h-5 w-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <p className="text-sm text-blue-700">
+                    A welcome email will be sent to the user with instructions to set up their password.
+                  </p>
+                </div>
               </div>
 
               {isGlobalAdmin && (
@@ -530,7 +568,6 @@ export default function Users() {
                   setShowAddUser(false);
                   setNewUser({
                     email: '',
-                    password: '',
                     full_name: '',
                     role: 'user',
                     department_id: ''

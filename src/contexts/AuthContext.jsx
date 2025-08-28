@@ -112,7 +112,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signUp = async (email, password, fullName) => {
-    // First, create the user account with email confirmation disabled
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -123,34 +122,11 @@ export const AuthProvider = ({ children }) => {
         emailRedirectTo: `${window.location.origin}/login`,
       },
     });
-
-    // If signup successful, send custom confirmation email
-    if (data?.user && !error) {
-      try {
-        // Generate confirmation URL (Supabase provides this in the response)
-        const confirmationUrl = `${window.location.origin}/auth/confirm?token_hash=${data.user.confirmation_token}&type=signup`;
-        
-        // Call our custom email function
-        const { error: emailError } = await supabase.functions.invoke('send-auth-email', {
-          body: {
-            type: 'signup',
-            email: email,
-            data: {
-              full_name: fullName,
-              confirmation_url: data.user?.email_confirm_token_url || confirmationUrl
-            }
-          }
-        });
-
-        if (emailError) {
-          console.error('Failed to send custom confirmation email:', emailError);
-          // Fall back to default Supabase email
-        }
-      } catch (err) {
-        console.error('Error sending custom email:', err);
-      }
-    }
-
+    
+    // Note: Keep "Confirm email" ENABLED in Supabase Dashboard
+    // This ensures proper email verification flow
+    // We'll just override the email template that gets sent
+    
     return { data, error };
   };
 

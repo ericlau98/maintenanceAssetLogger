@@ -5,7 +5,6 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Assets from './pages/Assets';
 import Inventory from './pages/Inventory';
@@ -20,7 +19,6 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/submit-ticket" element={<PublicTicket />} />
           <Route path="/" element={
             <PrivateRoute>

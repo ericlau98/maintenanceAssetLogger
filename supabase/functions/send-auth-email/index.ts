@@ -7,12 +7,13 @@ const corsHeaders = {
 }
 
 interface EmailRequest {
-  type: 'signup' | 'reset' | 'magic_link'
+  type: 'signup' | 'reset' | 'magic_link' | 'admin_created'
   email: string
   token?: string
   data?: {
     full_name?: string
     confirmation_url?: string
+    admin_name?: string
   }
 }
 
@@ -219,6 +220,91 @@ function getEmailTemplate(type: string, data: any): { subject: string; html: str
           This link will expire in 1 hour.
           
           If you didn't request a password reset, you can safely ignore this email.
+          
+          Best regards,
+          Great Lakes Greenhouses Team
+        `
+      }
+
+    case 'admin_created':
+      return {
+        subject: 'Welcome to Great Lakes Greenhouses - Account Created',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
+              .content { background: white; padding: 30px; border: 1px solid #ddd; border-radius: 0 0 10px 10px; }
+              .button { display: inline-block; padding: 12px 30px; background: #10b981; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+              .info-box { background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 5px; }
+              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 14px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Welcome to Great Lakes Greenhouses!</h1>
+              </div>
+              <div class="content">
+                <p>Hi ${data.full_name || 'there'},</p>
+                <p>An account has been created for you in the Great Lakes Greenhouses Asset Management System${data.admin_name ? ` by ${data.admin_name}` : ''}.</p>
+                
+                <div class="info-box">
+                  <strong>Your login email:</strong> ${email}
+                </div>
+                
+                <p>To get started, you'll need to set up your password. Click the button below to create your password:</p>
+                
+                <a href="${data.confirmation_url}" class="button">Set Your Password</a>
+                
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; color: #10b981;">${data.confirmation_url}</p>
+                
+                <p><strong>This link will expire in 7 days for security reasons.</strong></p>
+                
+                <h3>What you can do with your account:</h3>
+                <ul>
+                  <li>Track and manage greenhouse assets</li>
+                  <li>Monitor inventory levels</li>
+                  <li>Log maintenance activities</li>
+                  <li>Submit and track support tickets</li>
+                  <li>Collaborate with your team</li>
+                </ul>
+                
+                <div class="footer">
+                  <p>If you have any questions or need assistance, please contact your administrator.</p>
+                  <p>Best regards,<br>Great Lakes Greenhouses Team</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+        text: `
+          Welcome to Great Lakes Greenhouses!
+          
+          Hi ${data.full_name || 'there'},
+          
+          An account has been created for you in the Great Lakes Greenhouses Asset Management System${data.admin_name ? ` by ${data.admin_name}` : ''}.
+          
+          Your login email: ${email}
+          
+          To get started, you'll need to set up your password by visiting this link:
+          ${data.confirmation_url}
+          
+          This link will expire in 7 days for security reasons.
+          
+          What you can do with your account:
+          - Track and manage greenhouse assets
+          - Monitor inventory levels
+          - Log maintenance activities
+          - Submit and track support tickets
+          - Collaborate with your team
+          
+          If you have any questions or need assistance, please contact your administrator.
           
           Best regards,
           Great Lakes Greenhouses Team
