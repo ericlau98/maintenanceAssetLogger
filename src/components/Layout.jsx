@@ -40,15 +40,10 @@ export default function Layout() {
       }
       
       // Always redirect to login regardless of result
-      // Clear all storage to ensure clean logout
-      localStorage.clear();
-      sessionStorage.clear();
       window.location.href = '/login';
     } catch (err) {
       console.error('Sign out error:', err);
       // Force reload even on error to clear state
-      localStorage.clear();
-      sessionStorage.clear();
       window.location.href = '/login';
     }
   };

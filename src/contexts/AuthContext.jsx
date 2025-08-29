@@ -86,6 +86,8 @@ export const AuthProvider = ({ children }) => {
     fetchUserAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
       if (event === 'TOKEN_REFRESHED') {
         console.log('Token refreshed successfully');
       }
@@ -97,21 +99,40 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      if (session?.user) {
-        setUser(session.user);
-        
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*, department:departments!profiles_department_id_fkey(*)')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileError) {
-          console.error('Auth state change - Error fetching profile:', profileError);
-        } else {
-          setProfile(profileData);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (session?.user) {
+          setUser(session.user);
+          
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*, department:departments!profiles_department_id_fkey(*)')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error('Auth state change - Error fetching profile:', profileError);
+            // Try to create profile if it doesn't exist
+            if (profileError.code === 'PGRST116') {
+              const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: session.user.id,
+                  email: session.user.email,
+                  full_name: session.user.user_metadata?.full_name || '',
+                  role: 'user'
+                })
+                .select('*, department:departments!profiles_department_id_fkey(*)')
+                .single();
+              
+              if (!createError) {
+                setProfile(newProfile);
+              }
+            }
+          } else {
+            setProfile(profileData);
+          }
         }
-      } else {
+      } else if (!session) {
         setUser(null);
         setProfile(null);
       }
@@ -175,10 +196,6 @@ export const AuthProvider = ({ children }) => {
       // Clear state regardless of Supabase result
       setUser(null);
       setProfile(null);
-      
-      // Clear any stored session data
-      localStorage.removeItem('supabase.auth.token');
-      sessionStorage.clear();
       
       return { error };
     } catch (err) {

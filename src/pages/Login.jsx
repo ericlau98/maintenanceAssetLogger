@@ -16,13 +16,25 @@ export default function Login() {
     setError('');
     setLoading(true);
 
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      setError(error.message);
+    try {
+      const { data, error } = await signIn(email, password);
+      
+      if (error) {
+        console.error('Login error:', error);
+        setError(error.message);
+        setLoading(false);
+      } else if (data?.user) {
+        console.log('Login successful, redirecting...');
+        // Use window.location for a full page reload to ensure auth state is fresh
+        window.location.href = '/';
+      } else {
+        setError('Login failed. Please try again.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Login exception:', err);
+      setError('An unexpected error occurred. Please try again.');
       setLoading(false);
-    } else {
-      navigate('/');
     }
   };
 
