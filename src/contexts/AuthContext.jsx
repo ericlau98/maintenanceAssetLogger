@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -28,7 +27,6 @@ export const AuthProvider = ({ children }) => {
           console.error('Error getting session:', sessionError);
           setConnectionError(true);
           setLoading(false);
-          setIsInitialized(true);
           return;
         }
         
@@ -37,7 +35,6 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           setProfile(null);
           setLoading(false);
-          setIsInitialized(true);
           return;
         }
         
@@ -90,14 +87,12 @@ export const AuthProvider = ({ children }) => {
         
         if (isMounted) {
           setLoading(false);
-          setIsInitialized(true);
         }
       } catch (error) {
         console.error('Error in fetchUserAndProfile:', error);
         if (isMounted) {
           setConnectionError(true);
           setLoading(false);
-          setIsInitialized(true);
         }
       }
     };
@@ -106,12 +101,6 @@ export const AuthProvider = ({ children }) => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
-      
-      // Skip if we're still initializing
-      if (!isInitialized && event === 'SIGNED_IN') {
-        console.log('Skipping SIGNED_IN event during initialization');
-        return;
-      }
       
       if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -124,19 +113,34 @@ export const AuthProvider = ({ children }) => {
         console.log('User signed in:', session.user.email);
         setUser(session.user);
         
-        // Only fetch profile if we don't have one yet
-        if (!profile || profile.id !== session.user.id) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*, department:departments!profiles_department_id_fkey(*)')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profileError) {
-            console.error('Auth state change - Error fetching profile:', profileError);
-          } else {
-            setProfile(profileData);
+        // Fetch profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*, department:departments!profiles_department_id_fkey(*)')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Auth state change - Error fetching profile:', profileError);
+          // If profile doesn't exist, create it
+          if (profileError.code === 'PGRST116') {
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: session.user.id,
+                email: session.user.email,
+                full_name: session.user.user_metadata?.full_name || '',
+                role: 'user'
+              })
+              .select('*, department:departments!profiles_department_id_fkey(*)')
+              .single();
+            
+            if (!createError) {
+              setProfile(newProfile);
+            }
           }
+        } else {
+          setProfile(profileData);
         }
         
         setLoading(false);
