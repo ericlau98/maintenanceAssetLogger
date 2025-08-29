@@ -23,18 +23,32 @@ export default function Layout() {
   const handleSignOut = async () => {
     try {
       setMobileMenuOpen(false); // Close mobile menu if open
-      const { error } = await signOut();
-      if (!error) {
-        // Force navigation to login page
-        window.location.href = '/login';
-      } else {
-        console.error('Sign out error:', error);
-        // Force reload even on error to clear state
-        window.location.href = '/login';
+      
+      // Call signOut with a timeout to prevent hanging
+      const signOutPromise = signOut();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign out timeout')), 5000)
+      );
+      
+      try {
+        const { error } = await Promise.race([signOutPromise, timeoutPromise]);
+        if (error) {
+          console.error('Sign out error:', error);
+        }
+      } catch (timeoutError) {
+        console.error('Sign out timed out:', timeoutError);
       }
+      
+      // Always redirect to login regardless of result
+      // Clear all storage to ensure clean logout
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/login';
     } catch (err) {
       console.error('Sign out error:', err);
       // Force reload even on error to clear state
+      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = '/login';
     }
   };

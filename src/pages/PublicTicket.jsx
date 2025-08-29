@@ -10,6 +10,7 @@ const supabase = createClient(
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      storageKey: 'supabase.public.token', // Different storage key to avoid conflicts
     }
   }
 );
