@@ -10,8 +10,11 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUserAndProfile = async () => {
       try {
         console.log('Checking for existing session...');
@@ -19,10 +22,13 @@ export const AuthProvider = ({ children }) => {
         // Get the current session from Supabase
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
+        if (!isMounted) return;
+        
         if (sessionError) {
           console.error('Error getting session:', sessionError);
           setConnectionError(true);
           setLoading(false);
+          setIsInitialized(true);
           return;
         }
         
@@ -31,6 +37,7 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           setProfile(null);
           setLoading(false);
+          setIsInitialized(true);
           return;
         }
         
@@ -45,6 +52,8 @@ export const AuthProvider = ({ children }) => {
             .select('*, department:departments!profiles_department_id_fkey(*)')
             .eq('id', session.user.id)
             .single();
+          
+          if (!isMounted) return;
           
           if (profileError) {
             console.error('Error fetching profile:', profileError);
@@ -63,6 +72,8 @@ export const AuthProvider = ({ children }) => {
                 .select('*, department:departments!profiles_department_id_fkey(*)')
                 .single();
               
+              if (!isMounted) return;
+              
               if (createError) {
                 console.error('Error creating profile:', createError);
               } else {
@@ -77,11 +88,17 @@ export const AuthProvider = ({ children }) => {
           console.error('Unexpected error fetching profile:', profileErr);
         }
         
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setIsInitialized(true);
+        }
       } catch (error) {
         console.error('Error in fetchUserAndProfile:', error);
-        setConnectionError(true);
-        setLoading(false);
+        if (isMounted) {
+          setConnectionError(true);
+          setLoading(false);
+          setIsInitialized(true);
+        }
       }
     };
 
@@ -89,6 +106,12 @@ export const AuthProvider = ({ children }) => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
+      
+      // Skip if we're still initializing
+      if (!isInitialized && event === 'SIGNED_IN') {
+        console.log('Skipping SIGNED_IN event during initialization');
+        return;
+      }
       
       if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -101,17 +124,19 @@ export const AuthProvider = ({ children }) => {
         console.log('User signed in:', session.user.email);
         setUser(session.user);
         
-        // Fetch profile after sign in
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*, department:departments!profiles_department_id_fkey(*)')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileError) {
-          console.error('Auth state change - Error fetching profile:', profileError);
-        } else {
-          setProfile(profileData);
+        // Only fetch profile if we don't have one yet
+        if (!profile || profile.id !== session.user.id) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*, department:departments!profiles_department_id_fkey(*)')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error('Auth state change - Error fetching profile:', profileError);
+          } else {
+            setProfile(profileData);
+          }
         }
         
         setLoading(false);
@@ -140,6 +165,7 @@ export const AuthProvider = ({ children }) => {
     }, 30000); // Check every 30 seconds
 
     return () => {
+      isMounted = false;
       authListener?.subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };
