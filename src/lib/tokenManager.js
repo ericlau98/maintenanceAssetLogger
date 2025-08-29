@@ -10,7 +10,7 @@ const generateToken = () => {
 };
 
 // Set token with 7-day expiration
-export const setAuthToken = (userId, email) => {
+export const setAuthToken = (userId, email, profile = null) => {
   const token = generateToken();
   const expiryDate = new Date();
   expiryDate.setDate(expiryDate.getDate() + 7); // 7 days from now
@@ -19,6 +19,12 @@ export const setAuthToken = (userId, email) => {
     token,
     userId,
     email,
+    profile: profile || {
+      id: userId,
+      email: email,
+      full_name: email.split('@')[0],
+      role: 'user'
+    },
     createdAt: new Date().toISOString(),
     expiresAt: expiryDate.toISOString()
   };

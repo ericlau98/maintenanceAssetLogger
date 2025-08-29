@@ -38,25 +38,22 @@ export const AuthProvider = ({ children }) => {
         );
         
         let session;
+        let isUsingFallback = false;
+        
         try {
           const result = await Promise.race([sessionPromise, timeoutPromise]);
           session = result.data?.session;
         } catch (timeoutError) {
           console.warn('Session check timed out, using cached token data');
-          // If Supabase times out but we have a valid token, try to refresh
-          try {
-            const refreshResult = await supabase.auth.refreshSession();
-            session = refreshResult.data?.session;
-          } catch (refreshError) {
-            // If refresh fails but token is valid, create a mock session
-            console.log('Using token-based authentication fallback');
-            session = {
-              user: {
-                id: tokenData.userId,
-                email: tokenData.email
-              }
-            };
-          }
+          // If Supabase times out but we have a valid token, use fallback
+          console.log('Using token-based authentication fallback');
+          session = {
+            user: {
+              id: tokenData.userId,
+              email: tokenData.email
+            }
+          };
+          isUsingFallback = true;
         }
         
         setConnectionError(false);
@@ -65,57 +62,78 @@ export const AuthProvider = ({ children }) => {
           setUser(session.user);
           console.log('Session user:', session.user);
           
-          // Fetch profile separately with its own timeout
-          const profilePromise = supabase
-            .from('profiles')
-            .select('*, department:departments!profiles_department_id_fkey(*)')
-            .eq('id', session.user.id)
-            .single();
-          
-          const profileTimeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Profile timeout')), 5000)
-          );
-          
-          try {
-            const { data: profileData, error: profileError } = await Promise.race([
-              profilePromise,
-              profileTimeoutPromise
-            ]);
-            
-            if (profileError) {
-              console.error('Error fetching profile:', profileError);
-              // If profile doesn't exist, create it
-              if (profileError?.code === 'PGRST116') {
-                console.log('Profile not found, creating one...');
-                const { data: newProfile, error: createError } = await supabase
-                  .from('profiles')
-                  .insert({
-                    id: session.user.id,
-                    email: session.user.email,
-                    full_name: session.user.user_metadata?.full_name || '',
-                    role: 'user'
-                  })
-                  .select('*, department:departments!profiles_department_id_fkey(*)')
-                  .single();
-                
-                if (createError) {
-                  console.error('Error creating profile:', createError);
-                } else {
-                  setProfile(newProfile);
-                }
-              }
-            } else if (profileData) {
-              console.log('Profile data:', profileData);
-              setProfile(profileData);
-            }
-          } catch (profileTimeoutError) {
-            console.warn('Profile fetch timed out, continuing without profile');
-            // Set a minimal profile so the user can still use the app
-            setProfile({ 
+          // If we're using fallback, skip profile fetch and use stored profile from token
+          if (isUsingFallback) {
+            console.log('Using fallback mode, setting profile from token');
+            // Use the profile stored in the token
+            const storedProfile = tokenData.profile || {
               id: session.user.id, 
               email: session.user.email,
-              role: 'user' 
-            });
+              role: 'user',
+              full_name: session.user.email.split('@')[0]
+            };
+            setProfile(storedProfile);
+          } else {
+            // Only fetch profile if we have a real Supabase session
+            const profilePromise = supabase
+              .from('profiles')
+              .select('*, department:departments!profiles_department_id_fkey(*)')
+              .eq('id', session.user.id)
+              .single();
+            
+            const profileTimeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Profile timeout')), 5000)
+            );
+            
+            try {
+              const { data: profileData, error: profileError } = await Promise.race([
+                profilePromise,
+                profileTimeoutPromise
+              ]);
+              
+              if (profileError) {
+                console.error('Error fetching profile:', profileError);
+                // If profile doesn't exist, create it
+                if (profileError?.code === 'PGRST116') {
+                  console.log('Profile not found, creating one...');
+                  const { data: newProfile, error: createError } = await supabase
+                    .from('profiles')
+                    .insert({
+                      id: session.user.id,
+                      email: session.user.email,
+                      full_name: session.user.user_metadata?.full_name || '',
+                      role: 'user'
+                    })
+                    .select('*, department:departments!profiles_department_id_fkey(*)')
+                    .single();
+                  
+                  if (createError) {
+                    console.error('Error creating profile:', createError);
+                    // Use minimal profile if creation fails
+                    setProfile({ 
+                      id: session.user.id, 
+                      email: session.user.email,
+                      role: 'user',
+                      full_name: session.user.email.split('@')[0]
+                    });
+                  } else {
+                    setProfile(newProfile);
+                  }
+                }
+              } else if (profileData) {
+                console.log('Profile data:', profileData);
+                setProfile(profileData);
+              }
+            } catch (profileTimeoutError) {
+              console.warn('Profile fetch timed out, continuing without profile');
+              // Set a minimal profile so the user can still use the app
+              setProfile({ 
+                id: session.user.id, 
+                email: session.user.email,
+                role: 'user',
+                full_name: session.user.email.split('@')[0]
+              });
+            }
           }
         } else {
           setUser(null);
@@ -149,8 +167,6 @@ export const AuthProvider = ({ children }) => {
       }
       
       if (event === 'SIGNED_IN' && session?.user) {
-        // Set token on sign in event
-        setAuthToken(session.user.id, session.user.email);
         setUser(session.user);
         
         const { data: profileData, error: profileError } = await supabase
@@ -161,8 +177,12 @@ export const AuthProvider = ({ children }) => {
         
         if (profileError) {
           console.error('Auth state change - Error fetching profile:', profileError);
+          // Set token without profile
+          setAuthToken(session.user.id, session.user.email);
         } else {
           setProfile(profileData);
+          // Set token with profile
+          setAuthToken(session.user.id, session.user.email, profileData);
         }
       } else if (session?.user) {
         setUser(session.user);
@@ -233,9 +253,22 @@ export const AuthProvider = ({ children }) => {
     });
     
     if (!error && data?.user) {
-      // Set the auth token on successful login
-      setAuthToken(data.user.id, data.user.email);
-      console.log('Auth token set for user:', data.user.email);
+      // Try to fetch the profile immediately after login
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*, department:departments!profiles_department_id_fkey(*)')
+          .eq('id', data.user.id)
+          .single();
+        
+        // Set the auth token with profile data
+        setAuthToken(data.user.id, data.user.email, profileData);
+        console.log('Auth token set with profile for user:', data.user.email);
+      } catch (profileError) {
+        // If profile fetch fails, set token without profile
+        setAuthToken(data.user.id, data.user.email);
+        console.log('Auth token set without profile for user:', data.user.email);
+      }
     }
     
     return { data, error };
