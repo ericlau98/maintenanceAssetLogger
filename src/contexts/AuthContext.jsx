@@ -12,24 +12,29 @@ export const AuthProvider = ({ children }) => {
   const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
-    let timeoutId;
-    
     const fetchUserAndProfile = async () => {
       try {
-        // Set a timeout to prevent infinite loading
-        timeoutId = setTimeout(() => {
-          console.warn('Auth check timeout - setting loading to false');
-          setLoading(false);
-        }, 10000); // 10 second timeout
+        // First, try to get session with a shorter timeout
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 5000)
+        );
         
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('Error getting session:', sessionError);
-          setConnectionError(true);
-          setLoading(false);
-          clearTimeout(timeoutId);
-          return;
+        let session;
+        try {
+          const result = await Promise.race([sessionPromise, timeoutPromise]);
+          session = result.data?.session;
+        } catch (timeoutError) {
+          console.warn('Session check timed out, trying to refresh...');
+          // Try to refresh the session if the initial check times out
+          try {
+            const refreshResult = await supabase.auth.refreshSession();
+            session = refreshResult.data?.session;
+          } catch (refreshError) {
+            console.error('Failed to refresh session:', refreshError);
+            setLoading(false);
+            return;
+          }
         }
         
         setConnectionError(false);
@@ -38,17 +43,27 @@ export const AuthProvider = ({ children }) => {
           setUser(session.user);
           console.log('Session user:', session.user);
           
+          // Fetch profile separately with its own timeout
+          const profilePromise = supabase
+            .from('profiles')
+            .select('*, department:departments!profiles_department_id_fkey(*)')
+            .eq('id', session.user.id)
+            .single();
+          
+          const profileTimeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Profile timeout')), 5000)
+          );
+          
           try {
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('*, department:departments!profiles_department_id_fkey(*)')
-              .eq('id', session.user.id)
-              .single();
+            const { data: profileData, error: profileError } = await Promise.race([
+              profilePromise,
+              profileTimeoutPromise
+            ]);
             
             if (profileError) {
               console.error('Error fetching profile:', profileError);
               // If profile doesn't exist, create it
-              if (profileError.code === 'PGRST116') {
+              if (profileError?.code === 'PGRST116') {
                 console.log('Profile not found, creating one...');
                 const { data: newProfile, error: createError } = await supabase
                   .from('profiles')
@@ -67,19 +82,28 @@ export const AuthProvider = ({ children }) => {
                   setProfile(newProfile);
                 }
               }
-            } else {
+            } else if (profileData) {
               console.log('Profile data:', profileData);
               setProfile(profileData);
             }
-          } catch (profileErr) {
-            console.error('Unexpected error fetching profile:', profileErr);
+          } catch (profileTimeoutError) {
+            console.warn('Profile fetch timed out, continuing without profile');
+            // Set a minimal profile so the user can still use the app
+            setProfile({ 
+              id: session.user.id, 
+              email: session.user.email,
+              role: 'user' 
+            });
           }
+        } else {
+          setUser(null);
+          setProfile(null);
         }
       } catch (error) {
         console.error('Error in fetchUserAndProfile:', error);
+        setConnectionError(true);
       } finally {
         setLoading(false);
-        clearTimeout(timeoutId);
       }
     };
 
@@ -136,7 +160,6 @@ export const AuthProvider = ({ children }) => {
     return () => {
       authListener?.subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
-      clearTimeout(timeoutId);
     };
   }, []);
 
