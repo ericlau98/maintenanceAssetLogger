@@ -1,12 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { 
-  setAuthToken, 
-  getAuthToken, 
-  clearAuthToken, 
-  isTokenValid,
-  refreshTokenExpiry 
-} from '../lib/tokenManager';
 
 const AuthContext = createContext({});
 
@@ -21,128 +14,73 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const fetchUserAndProfile = async () => {
       try {
-        // First check if we have a valid token
-        const tokenData = getAuthToken();
-        if (!tokenData) {
-          console.log('No valid token found, user needs to login');
+        console.log('Checking for existing session...');
+        
+        // Get the current session from Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          setConnectionError(true);
           setLoading(false);
           return;
         }
         
-        console.log('Valid token found for user:', tokenData.email);
-        
-        // Now verify the session with Supabase
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 3000) // Reduced timeout since we have token
-        );
-        
-        let session;
-        let isUsingFallback = false;
-        
-        try {
-          const result = await Promise.race([sessionPromise, timeoutPromise]);
-          session = result.data?.session;
-        } catch (timeoutError) {
-          console.warn('Session check timed out, using cached token data');
-          // If Supabase times out but we have a valid token, use fallback
-          console.log('Using token-based authentication fallback');
-          session = {
-            user: {
-              id: tokenData.userId,
-              email: tokenData.email
-            }
-          };
-          isUsingFallback = true;
-        }
-        
-        setConnectionError(false);
-        
-        if (session?.user) {
-          setUser(session.user);
-          console.log('Session user:', session.user);
-          
-          // If we're using fallback, skip profile fetch and use stored profile from token
-          if (isUsingFallback) {
-            console.log('Using fallback mode, setting profile from token');
-            // Use the profile stored in the token
-            const storedProfile = tokenData.profile || {
-              id: session.user.id, 
-              email: session.user.email,
-              role: 'user',
-              full_name: session.user.email.split('@')[0]
-            };
-            setProfile(storedProfile);
-          } else {
-            // Only fetch profile if we have a real Supabase session
-            const profilePromise = supabase
-              .from('profiles')
-              .select('*, department:departments!profiles_department_id_fkey(*)')
-              .eq('id', session.user.id)
-              .single();
-            
-            const profileTimeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile timeout')), 5000)
-            );
-            
-            try {
-              const { data: profileData, error: profileError } = await Promise.race([
-                profilePromise,
-                profileTimeoutPromise
-              ]);
-              
-              if (profileError) {
-                console.error('Error fetching profile:', profileError);
-                // If profile doesn't exist, create it
-                if (profileError?.code === 'PGRST116') {
-                  console.log('Profile not found, creating one...');
-                  const { data: newProfile, error: createError } = await supabase
-                    .from('profiles')
-                    .insert({
-                      id: session.user.id,
-                      email: session.user.email,
-                      full_name: session.user.user_metadata?.full_name || '',
-                      role: 'user'
-                    })
-                    .select('*, department:departments!profiles_department_id_fkey(*)')
-                    .single();
-                  
-                  if (createError) {
-                    console.error('Error creating profile:', createError);
-                    // Use minimal profile if creation fails
-                    setProfile({ 
-                      id: session.user.id, 
-                      email: session.user.email,
-                      role: 'user',
-                      full_name: session.user.email.split('@')[0]
-                    });
-                  } else {
-                    setProfile(newProfile);
-                  }
-                }
-              } else if (profileData) {
-                console.log('Profile data:', profileData);
-                setProfile(profileData);
-              }
-            } catch (profileTimeoutError) {
-              console.warn('Profile fetch timed out, continuing without profile');
-              // Set a minimal profile so the user can still use the app
-              setProfile({ 
-                id: session.user.id, 
-                email: session.user.email,
-                role: 'user',
-                full_name: session.user.email.split('@')[0]
-              });
-            }
-          }
-        } else {
+        if (!session) {
+          console.log('No active session found');
           setUser(null);
           setProfile(null);
+          setLoading(false);
+          return;
         }
+        
+        console.log('Session found for user:', session.user.email);
+        setUser(session.user);
+        setConnectionError(false);
+        
+        // Fetch the user's profile
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*, department:departments!profiles_department_id_fkey(*)')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error('Error fetching profile:', profileError);
+            
+            // If profile doesn't exist, create it
+            if (profileError.code === 'PGRST116') {
+              console.log('Profile not found, creating one...');
+              const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: session.user.id,
+                  email: session.user.email,
+                  full_name: session.user.user_metadata?.full_name || '',
+                  role: 'user'
+                })
+                .select('*, department:departments!profiles_department_id_fkey(*)')
+                .single();
+              
+              if (createError) {
+                console.error('Error creating profile:', createError);
+              } else {
+                setProfile(newProfile);
+              }
+            }
+          } else {
+            console.log('Profile loaded:', profileData.email);
+            setProfile(profileData);
+          }
+        } catch (profileErr) {
+          console.error('Unexpected error fetching profile:', profileErr);
+        }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error in fetchUserAndProfile:', error);
         setConnectionError(true);
-      } finally {
         setLoading(false);
       }
     };
@@ -150,16 +88,9 @@ export const AuthProvider = ({ children }) => {
     fetchUserAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-        // Refresh our custom token expiry when Supabase token is refreshed
-        if (session?.user && isTokenValid()) {
-          refreshTokenExpiry();
-        }
-      }
+      console.log('Auth event:', event);
       
       if (event === 'SIGNED_OUT') {
-        clearAuthToken();
         setUser(null);
         setProfile(null);
         setLoading(false);
@@ -167,26 +98,10 @@ export const AuthProvider = ({ children }) => {
       }
       
       if (event === 'SIGNED_IN' && session?.user) {
+        console.log('User signed in:', session.user.email);
         setUser(session.user);
         
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*, department:departments!profiles_department_id_fkey(*)')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileError) {
-          console.error('Auth state change - Error fetching profile:', profileError);
-          // Set token without profile
-          setAuthToken(session.user.id, session.user.email);
-        } else {
-          setProfile(profileData);
-          // Set token with profile
-          setAuthToken(session.user.id, session.user.email, profileData);
-        }
-      } else if (session?.user) {
-        setUser(session.user);
-        
+        // Fetch profile after sign in
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*, department:departments!profiles_department_id_fkey(*)')
@@ -198,13 +113,16 @@ export const AuthProvider = ({ children }) => {
         } else {
           setProfile(profileData);
         }
-      } else if (!isTokenValid()) {
-        // If no session and no valid token, clear everything
-        setUser(null);
-        setProfile(null);
+        
+        setLoading(false);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('Token refreshed for user:', session.user.email);
+        // Update user in case anything changed
+        setUser(session.user);
+      } else if (event === 'USER_UPDATED' && session?.user) {
+        console.log('User updated:', session.user.email);
+        setUser(session.user);
       }
-      
-      setLoading(false);
     });
 
     // Set up a periodic session check every 30 seconds
@@ -252,50 +170,19 @@ export const AuthProvider = ({ children }) => {
       password,
     });
     
-    if (!error && data?.user) {
-      // Try to fetch the profile immediately after login
-      try {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*, department:departments!profiles_department_id_fkey(*)')
-          .eq('id', data.user.id)
-          .single();
-        
-        // Set the auth token with profile data
-        setAuthToken(data.user.id, data.user.email, profileData);
-        console.log('Auth token set with profile for user:', data.user.email);
-      } catch (profileError) {
-        // If profile fetch fails, set token without profile
-        setAuthToken(data.user.id, data.user.email);
-        console.log('Auth token set without profile for user:', data.user.email);
-      }
-    }
-    
     return { data, error };
   };
 
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      
-      // Always clear token and state regardless of Supabase response
-      clearAuthToken();
-      setUser(null);
-      setProfile(null);
-      
-      // Clear any stored session data
-      localStorage.removeItem('supabase.auth.token');
-      sessionStorage.clear();
-      
-      console.log('User signed out and token cleared');
-      
+      if (!error) {
+        setUser(null);
+        setProfile(null);
+      }
       return { error };
     } catch (err) {
       console.error('Sign out error:', err);
-      // Still clear everything even on error
-      clearAuthToken();
-      setUser(null);
-      setProfile(null);
       return { error: err };
     }
   };
