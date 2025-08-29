@@ -22,13 +22,21 @@ export default function Dashboard() {
   }, []);
 
   const fetchDashboardStats = async () => {
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Dashboard data fetch timeout - setting loading to false');
+      setLoading(false);
+    }, 8000); // 8 second timeout (less than auth timeout)
+
     try {
+
       // Check session before making queries
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         // Try to refresh
         const { data: { session: newSession } } = await supabase.auth.refreshSession();
         if (!newSession) {
+          clearTimeout(timeoutId);
           setLoading(false);
           return;
         }
@@ -100,12 +108,15 @@ export default function Dashboard() {
       });
 
       setRecentLogs(recentLogsData.data || []);
+      clearTimeout(timeoutId);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       // Try to refresh session on error
       await supabase.auth.refreshSession();
+      clearTimeout(timeoutId);
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 

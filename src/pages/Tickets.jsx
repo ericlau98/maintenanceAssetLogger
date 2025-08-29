@@ -65,6 +65,12 @@ export default function Tickets() {
   }, []);
 
   const fetchTickets = async () => {
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Tickets fetch timeout - setting loading to false');
+      setLoading(false);
+    }, 8000);
+
     try {
       let query = supabase
         .from('tickets')
@@ -94,10 +100,13 @@ export default function Tickets() {
 
       if (error) throw error;
       setTickets(data || []);
+      clearTimeout(timeoutId);
     } catch (error) {
       console.error('Error fetching tickets:', error);
+      clearTimeout(timeoutId);
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 

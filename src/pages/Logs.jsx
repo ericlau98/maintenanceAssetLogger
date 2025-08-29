@@ -20,6 +20,12 @@ export default function Logs() {
   }, []);
 
   const fetchData = async () => {
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Logs fetch timeout - setting loading to false');
+      setLoading(false);
+    }, 8000);
+
     try {
       const [logsResponse, assetsResponse, profilesResponse] = await Promise.all([
         supabase
@@ -46,10 +52,13 @@ export default function Logs() {
 
       setLogs(logsWithDetails);
       setAssets(assetsResponse.data);
+      clearTimeout(timeoutId);
     } catch (error) {
       console.error('Error fetching data:', error);
+      clearTimeout(timeoutId);
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 

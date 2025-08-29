@@ -39,6 +39,12 @@ export default function Users() {
   }, []);
 
   const fetchUsers = async () => {
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Users fetch timeout - setting loading to false');
+      setLoading(false);
+    }, 8000);
+
     try {
       let query = supabase
         .from('profiles')
@@ -53,10 +59,13 @@ export default function Users() {
       const { data, error } = await query;
       if (error) throw error;
       setUsers(data || []);
+      clearTimeout(timeoutId);
     } catch (error) {
       console.error('Error fetching users:', error);
+      clearTimeout(timeoutId);
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 

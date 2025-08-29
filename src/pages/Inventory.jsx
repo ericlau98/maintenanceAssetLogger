@@ -19,6 +19,12 @@ export default function Inventory() {
   }, []);
 
   const fetchInventory = async () => {
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Inventory fetch timeout - setting loading to false');
+      setLoading(false);
+    }, 8000);
+
     try {
       const { data, error } = await supabase
         .from('inventory')
@@ -27,10 +33,13 @@ export default function Inventory() {
 
       if (error) throw error;
       setInventory(data || []);
+      clearTimeout(timeoutId);
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      clearTimeout(timeoutId);
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 

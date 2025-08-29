@@ -17,6 +17,12 @@ export default function Assets() {
   }, []);
 
   const fetchAssets = async () => {
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Assets fetch timeout - setting loading to false');
+      setLoading(false);
+    }, 8000);
+
     try {
       const { data, error } = await supabase
         .from('assets')
@@ -25,10 +31,13 @@ export default function Assets() {
 
       if (error) throw error;
       setAssets(data || []);
+      clearTimeout(timeoutId);
     } catch (error) {
       console.error('Error fetching assets:', error);
+      clearTimeout(timeoutId);
     } finally {
       setLoading(false);
+      clearTimeout(timeoutId);
     }
   };
 
