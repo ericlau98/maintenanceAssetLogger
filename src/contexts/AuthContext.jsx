@@ -102,6 +102,13 @@ export const AuthProvider = ({ children }) => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
       
+      // INITIAL_SESSION event fires on page load when there's an existing session
+      // We skip it because fetchUserAndProfile already handles initial load
+      if (event === 'INITIAL_SESSION') {
+        console.log('Skipping INITIAL_SESSION event - handled by fetchUserAndProfile');
+        return;
+      }
+      
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
