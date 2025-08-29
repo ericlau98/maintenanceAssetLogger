@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { 
+  setAuthToken, 
+  getAuthToken, 
+  clearAuthToken, 
+  isTokenValid,
+  refreshTokenExpiry 
+} from '../lib/tokenManager';
 
 const AuthContext = createContext({});
 
@@ -14,10 +21,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const fetchUserAndProfile = async () => {
       try {
-        // First, try to get session with a shorter timeout
+        // First check if we have a valid token
+        const tokenData = getAuthToken();
+        if (!tokenData) {
+          console.log('No valid token found, user needs to login');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Valid token found for user:', tokenData.email);
+        
+        // Now verify the session with Supabase
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 5000)
+          setTimeout(() => reject(new Error('Session timeout')), 3000) // Reduced timeout since we have token
         );
         
         let session;
@@ -25,15 +42,20 @@ export const AuthProvider = ({ children }) => {
           const result = await Promise.race([sessionPromise, timeoutPromise]);
           session = result.data?.session;
         } catch (timeoutError) {
-          console.warn('Session check timed out, trying to refresh...');
-          // Try to refresh the session if the initial check times out
+          console.warn('Session check timed out, using cached token data');
+          // If Supabase times out but we have a valid token, try to refresh
           try {
             const refreshResult = await supabase.auth.refreshSession();
             session = refreshResult.data?.session;
           } catch (refreshError) {
-            console.error('Failed to refresh session:', refreshError);
-            setLoading(false);
-            return;
+            // If refresh fails but token is valid, create a mock session
+            console.log('Using token-based authentication fallback');
+            session = {
+              user: {
+                id: tokenData.userId,
+                email: tokenData.email
+              }
+            };
           }
         }
         
@@ -112,16 +134,23 @@ export const AuthProvider = ({ children }) => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'TOKEN_REFRESHED') {
         console.log('Token refreshed successfully');
+        // Refresh our custom token expiry when Supabase token is refreshed
+        if (session?.user && isTokenValid()) {
+          refreshTokenExpiry();
+        }
       }
       
       if (event === 'SIGNED_OUT') {
+        clearAuthToken();
         setUser(null);
         setProfile(null);
         setLoading(false);
         return;
       }
       
-      if (session?.user) {
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Set token on sign in event
+        setAuthToken(session.user.id, session.user.email);
         setUser(session.user);
         
         const { data: profileData, error: profileError } = await supabase
@@ -135,7 +164,22 @@ export const AuthProvider = ({ children }) => {
         } else {
           setProfile(profileData);
         }
-      } else {
+      } else if (session?.user) {
+        setUser(session.user);
+        
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*, department:departments!profiles_department_id_fkey(*)')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Auth state change - Error fetching profile:', profileError);
+        } else {
+          setProfile(profileData);
+        }
+      } else if (!isTokenValid()) {
+        // If no session and no valid token, clear everything
         setUser(null);
         setProfile(null);
       }
@@ -187,22 +231,38 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
     });
+    
+    if (!error && data?.user) {
+      // Set the auth token on successful login
+      setAuthToken(data.user.id, data.user.email);
+      console.log('Auth token set for user:', data.user.email);
+    }
+    
     return { data, error };
   };
 
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (!error) {
-        setUser(null);
-        setProfile(null);
-        // Clear any stored session data
-        localStorage.removeItem('supabase.auth.token');
-        sessionStorage.clear();
-      }
+      
+      // Always clear token and state regardless of Supabase response
+      clearAuthToken();
+      setUser(null);
+      setProfile(null);
+      
+      // Clear any stored session data
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+      
+      console.log('User signed out and token cleared');
+      
       return { error };
     } catch (err) {
       console.error('Sign out error:', err);
+      // Still clear everything even on error
+      clearAuthToken();
+      setUser(null);
+      setProfile(null);
       return { error: err };
     }
   };
