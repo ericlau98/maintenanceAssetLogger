@@ -18,8 +18,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    // Only fetch if we have a user
+    if (user) {
+      fetchDashboardStats();
+    } else {
+      // If no user, ensure we're not stuck loading
+      setLoading(false);
+    }
+  }, [user]);
 
   const fetchDashboardStats = async () => {
     // Set a timeout to prevent infinite loading
@@ -29,17 +35,28 @@ export default function Dashboard() {
     }, 8000); // 8 second timeout (less than auth timeout)
 
     try {
-
-      // Check session before making queries
-      const { data: { session } } = await supabase.auth.getSession();
+      // First ensure we have a valid session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        clearTimeout(timeoutId);
+        setLoading(false);
+        return;
+      }
+      
       if (!session) {
-        // Try to refresh
-        const { data: { session: newSession } } = await supabase.auth.refreshSession();
-        if (!newSession) {
+        console.log('No session found, attempting to refresh...');
+        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !newSession) {
+          console.error('Failed to refresh session:', refreshError);
           clearTimeout(timeoutId);
           setLoading(false);
           return;
         }
+        
+        console.log('Session refreshed successfully');
       }
 
       // Build the logs query based on user role
@@ -83,16 +100,24 @@ export default function Dashboard() {
           .in('status', ['to_do', 'in_progress', 'review'])
       ]);
 
-      // Check for auth errors and retry if needed
+      // Check for auth errors and retry ONCE if needed
       if (assets.error?.code === 'PGRST301' || inventory.error?.code === 'PGRST301' || 
           logs.error?.code === 'PGRST301' || recentLogsData.error?.code === 'PGRST301' ||
           tickets.error?.code === 'PGRST301') {
         console.log('Auth error detected, refreshing session...');
-        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-        if (refreshedSession) {
-          // Retry the fetch
-          return fetchDashboardStats();
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshedSession) {
+          console.error('Failed to refresh session after auth error:', refreshError);
+          clearTimeout(timeoutId);
+          setLoading(false);
+          return;
         }
+        
+        // Clear timeout before recursive call
+        clearTimeout(timeoutId);
+        // Retry the fetch (will create its own timeout)
+        return fetchDashboardStats();
       }
 
       const activeAssets = assets.data?.filter(a => a.status === 'active').length || 0;
@@ -109,14 +134,18 @@ export default function Dashboard() {
 
       setRecentLogs(recentLogsData.data || []);
       clearTimeout(timeoutId);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      // Try to refresh session on error
-      await supabase.auth.refreshSession();
       clearTimeout(timeoutId);
-    } finally {
       setLoading(false);
-      clearTimeout(timeoutId);
+      
+      // Try to refresh session on unexpected errors
+      try {
+        await supabase.auth.refreshSession();
+      } catch (refreshError) {
+        console.error('Failed to refresh session after error:', refreshError);
+      }
     }
   };
 
